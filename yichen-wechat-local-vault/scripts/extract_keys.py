@@ -20,12 +20,13 @@ import tempfile
 import textwrap
 import time
 from pathlib import Path
+from private_io import atomic_json, private_dir, private_log
 
 KEYS_FILE = Path("~/.config/wechat-keys.json").expanduser()
 CONFIG_FILE = Path("~/.config/wechat-local-vault.json").expanduser()
 WECHAT_APP = Path("/Applications/WeChat.app")
-WECHAT_COPY = Path("~/Desktop/WeChat.app").expanduser()
-FRIDA_LOG = Path("/tmp/wechat_frida_keys.log")
+WECHAT_COPY = Path("~/Library/Application Support/wechat-local-vault/app/WeChat.app").expanduser()
+FRIDA_LOG = Path("~/Library/Application Support/wechat-local-vault/private/capture.jsonl").expanduser()
 DEFAULT_VAULT_DIR = Path("~/Library/Application Support/wechat-local-vault").expanduser()
 WECHAT_BASE = Path(
     "~/Library/Containers/com.tencent.xinWeChat/Data/Documents/xwechat_files"
@@ -276,41 +277,33 @@ def load_config() -> dict:
 
 
 def save_json(path: Path, data: dict) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    with path.open("w") as f:
-        json.dump(data, f, indent=2, ensure_ascii=False)
-    try:
-        os.chmod(path, 0o600)
-    except OSError:
-        pass
+    atomic_json(path, data)
 
 
-def check_env() -> None:
-    print("\n[1/5] Checking environment...")
+def check_env(*, capture=False, match=False) -> None:
     if sys.platform != "darwin":
         raise SystemExit("This helper only supports macOS.")
     if not WECHAT_APP.exists():
-        raise SystemExit(f"WeChat not found: {WECHAT_APP}")
-    if sys.version_info < (3, 9):
-        raise SystemExit(f"Python 3.9+ is required. Current: {sys.version}")
-    try:
-        import frida  # noqa: F401
-        print(f"  OK frida {frida.__version__}")
-    except ImportError:
-        print("  Installing frida...")
-        run_cmd([sys.executable, "-m", "pip", "install", "frida", "frida-tools"])
-    try:
-        from Crypto.Cipher import AES  # noqa: F401
-        print("  OK pycryptodome")
-    except ImportError:
-        print("  Installing pycryptodome...")
-        run_cmd([sys.executable, "-m", "pip", "install", "pycryptodome"])
+        raise SystemExit("WeChat application not found")
+    if sys.version_info < (3, 10):
+        raise SystemExit("Python 3.10+ required")
+    if capture or match:
+        try:
+            from Crypto.Cipher import AES
+            if capture:
+                import frida
+        except ImportError:
+            raise SystemExit("Missing dependency. Use the installed wechat-vault wrapper; no automatic global pip install.") from None
 
 
 def prepare_wechat(copy_path: Path, skip_prepare: bool) -> None:
     print("\n[2/5] Preparing signed WeChat copy...")
+    copy_path = copy_path.expanduser().absolute()
+    if copy_path.resolve() == WECHAT_APP.resolve() or copy_path.is_symlink():
+        raise SystemExit("Refusing to re-sign the original app or a symlink")
+    private_dir(copy_path.parent)
     if skip_prepare:
-        print(f"  Skipped. Using {copy_path}")
+        print("  Skipped preparation; using private app copy")
         return
     if not copy_path.exists():
         print(f"  Copying {WECHAT_APP} -> {copy_path}")
@@ -339,6 +332,8 @@ def find_db_base(preferred: str | None = None) -> tuple[str, Path]:
     dirs = sorted(glob.glob(str(WECHAT_BASE / "*/db_storage")))
     if not dirs:
         raise SystemExit(f"No WeChat db_storage directory found under {WECHAT_BASE}")
+    if len(dirs) != 1:
+        raise SystemExit("Multiple accounts found; select one explicitly with --db-base. No account was chosen.")
     db_base = Path(dirs[0])
     return db_base.parts[-2], db_base
 
@@ -405,8 +400,7 @@ def run_frida_capture(
     reset_log: bool,
 ) -> None:
     print("\n[4/5] Capturing PBKDF2 calls with frida...")
-    if reset_log and FRIDA_LOG.exists():
-        FRIDA_LOG.unlink()
+    private_log(FRIDA_LOG, reset=reset_log)
 
     wechat_binary = copy_path / "Contents/MacOS/WeChat"
     if not wechat_binary.exists():
@@ -428,7 +422,7 @@ def run_frida_capture(
         .replace("___JS_CODE_JSON___", json.dumps(js_code))
     )
 
-    with tempfile.NamedTemporaryFile("w", suffix="_wechat_frida_host.py", delete=False) as f:
+    with tempfile.NamedTemporaryFile("w", suffix="_wechat_frida_host.py", dir=FRIDA_LOG.parent, delete=False) as f:
         f.write(host)
         host_path = f.name
 
@@ -607,7 +601,7 @@ def update_config(wxid: str, db_base: Path) -> None:
     config["db_base_path"] = str(db_base)
     config.setdefault("vault_dir", str(DEFAULT_VAULT_DIR))
     config.setdefault("decrypted_dir", str(DEFAULT_VAULT_DIR / "decrypted/current"))
-    config.setdefault("exports_dir", "~/Documents/wechat-local-vault/exports")
+    config.setdefault("exports_dir", str(DEFAULT_VAULT_DIR / "exports"))
     save_json(CONFIG_FILE, config)
     print(f"  Updated config: {CONFIG_FILE}")
 
@@ -632,7 +626,7 @@ def main() -> None:
     parser.add_argument("--db-base", default=None)
     parser.add_argument("--wechat-copy", default=str(WECHAT_COPY))
     parser.add_argument("--skip-prepare", action="store_true")
-    parser.add_argument("--reuse-log", action="store_true", help="Do not delete /tmp/wechat_frida_keys.log before capture.")
+    parser.add_argument("--reuse-log", action="store_true", help="Reuse the private capture log; never reads legacy /tmp logs.")
     parser.add_argument("--list-dbs", action="store_true", help="Only print detected database salts.")
     parser.add_argument("--match-only", action="store_true", help="Only match keys from the existing frida log.")
     parser.add_argument("--show-sensitive", action="store_true", help="Show salts/key-adjacent identifiers in terminal output.")
@@ -642,11 +636,14 @@ def main() -> None:
     print("WeChat Mac 4.x database key extractor")
     print("=" * 64)
 
-    check_env()
+    check_env(capture=not (args.list_dbs or args.match_only), match=args.match_only)
     wxid, db_base = find_db_base(args.db_base)
+    previous_account = load_config().get("db_base_path")
+    if previous_account and Path(previous_account).expanduser().resolve() != db_base.resolve():
+        raise SystemExit("Account switching requires an independent configuration/vault; global config was not changed")
     db_info = collect_db_info(db_base)
     print(f"  wxid: {wxid if args.show_sensitive else '[redacted]'}")
-    print(f"  db_base: {db_base}")
+    print(f"  db_base: {db_base if args.show_sensitive else '[private account directory]'}")
     print_db_info(db_info, show_sensitive=args.show_sensitive)
 
     if args.list_dbs:
@@ -694,7 +691,8 @@ def main() -> None:
     else:
         print(f"Done. Keys saved to {KEYS_FILE}")
     print("=" * 64)
+    return 2 if missing else 0
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())

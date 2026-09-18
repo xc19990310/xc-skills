@@ -1,6 +1,26 @@
 # yichen-wechat-local-vault
 
+> 本机修订版 `2026.09.17-local.2`；入口 `~/.local/bin/wechat-vault`。先运行 `doctor`，安装不代表真实账号已解密。修复、依赖与未验证边界见 [本地安装记录](references/LOCAL-INSTALL.md)。
+
 微信本地数字资产库：支持 Mac 4.x 全量/增量解析，并整合实验性的 Windows 离线明文快照查询。按指令选择全量解密、增量刷新、统一查询、指定联系人/群聊导出、朋友圈/收藏夹解析、群聊精华素材包和关系复盘。
+
+## 从 GitHub 安装到 ChatGPT/Codex
+
+在支持本地工具和技能安装的 ChatGPT/Codex 环境中，直接发送：
+
+```text
+请从 https://github.com/xc19990310/yichen-skills/tree/main/yichen-wechat-local-vault 安装 yichen-wechat-local-vault；安装后先运行 doctor，不要自动抓取密钥。
+```
+
+安装后先运行 `doctor`。首次抓取密钥、刷新明文库和读取聊天内容都必须由使用者明确提出；安装本身不会启动微信，也不会读取账号数据。普通的 ChatGPT 网页对话不能直接访问 Mac 文件系统，必须使用具备本地工具权限的 ChatGPT/Codex 桌面或本地运行环境。
+
+## 使用边界
+
+- 只用于本人或已明确获授权的微信账号和数据，不要尝试读取他人账号。
+- Mac 首次初始化会在本机私有副本中执行密钥捕获；原始 `/Applications/WeChat.app` 不会被重签名或改写。
+- 密钥、明文数据库、捕获日志和聊天导出不会写入仓库；不要把这些文件提交、上传或发送给模型。
+- 仅在用户明确要求时执行 `extract`、`refresh`、`export-chat` 等涉及本机数据的操作；查询默认只读已生成的私有快照。
+- Windows 模式只接受用户提供的、静止且已授权的明文快照，不提取密钥、不解密、不控制微信界面。
 
 ## 隐私路径
 
@@ -13,22 +33,22 @@
 ## Mac 常用命令
 
 ```bash
-python3 scripts/extract_keys.py --list-dbs
-python3 scripts/extract_keys.py --match-only --targets all --reuse-log
-python3 scripts/extract_keys.py --targets all --duration 240
-python3 scripts/decrypt_all_dbs.py --mode full
-python3 scripts/decrypt_all_dbs.py --mode incremental
-python3 scripts/vault_cli.py status --format text
-python3 scripts/vault_cli.py sessions --format text
-python3 scripts/vault_cli.py history "联系人或群名" --format text
-python3 scripts/vault_cli.py search "关键词" --format text
-python3 scripts/vault_cli.py stats "群名" --format text
-python3 scripts/vault_cli.py favorites --format text
-python3 scripts/vault_cli.py moments --name "联系人" --format text
-python3 scripts/vault_cli.py digest-source "群名" --start "2026-05-01" --end "2026-05-14" --format text
-python3 scripts/export_chat.py --contact "联系人备注" --mode full
-python3 scripts/export_chat.py --contact "联系人备注" --mode incremental
-python3 scripts/export_chat.py --chat-id "contact_username" --since "2025-01-01"
+~/.local/bin/wechat-vault extract --list-dbs
+~/.local/bin/wechat-vault extract --match-only --targets all --reuse-log
+~/.local/bin/wechat-vault extract --targets all --duration 240
+~/.local/bin/wechat-vault refresh --mode full
+~/.local/bin/wechat-vault refresh --mode incremental
+~/.local/bin/wechat-vault status --format text
+~/.local/bin/wechat-vault sessions --format text
+~/.local/bin/wechat-vault history "联系人或群名" --format text
+~/.local/bin/wechat-vault search "关键词" --format text
+~/.local/bin/wechat-vault stats "群名" --format text
+~/.local/bin/wechat-vault favorites --format text
+~/.local/bin/wechat-vault moments --name "联系人" --format text
+~/.local/bin/wechat-vault digest-source "群名" --start "2026-05-01" --end "2026-05-14" --format text
+~/.local/bin/wechat-vault export-chat --contact "联系人备注" --mode full
+~/.local/bin/wechat-vault export-chat --contact "联系人备注" --mode incremental
+~/.local/bin/wechat-vault export-chat --chat-id "contact_username" --since "2025-01-01"
 ```
 
 `vault_cli.py` 默认 JSON 输出，适合被 Agent 调用；需要人工查看时加 `--format text`。
@@ -38,8 +58,8 @@ python3 scripts/export_chat.py --chat-id "contact_username" --since "2025-01-01"
 使用同一入口，不需要另装 Windows reader：
 
 ```bash
-python3 scripts/vault_cli.py snapshot --snapshot /path/to/authorized-snapshot validate
-python3 scripts/vault_cli.py snapshot --snapshot /path/to/authorized-snapshot chats
+~/.local/bin/wechat-vault snapshot --snapshot /path/to/authorized-snapshot validate
+~/.local/bin/wechat-vault snapshot --snapshot /path/to/authorized-snapshot chats
 ```
 
 随后使用返回的精确 `chat_id` 调用 `history`、`search` 或 `export`。此模式不访问 Mac 配置、不抓密钥、不解密、不刷新；仅接受验证器支持的离线明文结构，真实 Windows 版本兼容性仍为实验性。输入契约、依赖、来源和完整用法见 [Windows 快照模式](references/windows-snapshot.md)。

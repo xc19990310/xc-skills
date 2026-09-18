@@ -1,0 +1,10 @@
+colorama==0.4.6
+frida==17.18.0
+frida-tools==14.10.4
+prompt_toolkit==3.0.53
+pycryptodome==3.23.0
+Pygments==2.21.0
+wcwidth==0.8.3
+websockets==13.1
+zstandard==0.25.0
+PyYAML==6.0.3

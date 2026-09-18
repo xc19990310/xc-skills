@@ -18,6 +18,8 @@ from pathlib import Path
 import re
 import sqlite3
 import sys
+from private_io import atomic_json, atomic_text, report_path, private_dir
+from encrypted_snapshot import read_only
 from xml.etree import ElementTree as ET
 
 from wechat_schema import message_columns as shared_message_columns
@@ -32,7 +34,7 @@ except Exception:  # pragma: no cover - optional runtime dependency
 CONFIG_FILE = Path("~/.config/wechat-local-vault.json").expanduser()
 DEFAULT_VAULT_DIR = Path("~/Library/Application Support/wechat-local-vault").expanduser()
 DEFAULT_DECRYPTED_DIR = DEFAULT_VAULT_DIR / "decrypted/current"
-DEFAULT_EXPORTS_DIR = Path("~/Documents/wechat-local-vault/exports").expanduser()
+DEFAULT_EXPORTS_DIR = DEFAULT_VAULT_DIR / "exports"
 STATE_FILE = DEFAULT_VAULT_DIR / "state/vault_cli_last_check.json"
 
 ZSTD_MAGIC = b"\x28\xb5\x2f\xfd"
@@ -90,13 +92,7 @@ def load_json(path: Path) -> dict:
 
 
 def save_json(path: Path, data: dict) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    with path.open("w", encoding="utf-8") as f:
-        json.dump(data, f, ensure_ascii=False, indent=2)
-    try:
-        os.chmod(path, 0o600)
-    except OSError:
-        pass
+    atomic_json(path, data)
 
 
 def load_config() -> dict:
@@ -127,7 +123,7 @@ def resolve_db_dir() -> Path | None:
 
 
 def connect(path: Path) -> sqlite3.Connection:
-    con = sqlite3.connect(path)
+    con = read_only(path)
     con.row_factory = sqlite3.Row
     return con
 
@@ -227,8 +223,11 @@ def load_contacts(decrypted_dir: Path) -> tuple[dict[str, dict], dict[int, str]]
     with connect(contact_db) as con:
         if not table_exists(con, "contact"):
             return {}, {}
+        # WCDB can store binary metadata in declared TEXT columns (e.g. avatar).
+        # Decode individual fields; an unrelated avatar must not break lookup.
+        con.text_factory = bytes
         for row in con.execute("SELECT * FROM contact"):
-            item = dict(row)
+            item = {name: decode_value(value) if isinstance(value, bytes) else value for name, value in dict(row).items()}
             username = item.get("username") or item.get("userName") or ""
             if not username:
                 continue
@@ -535,6 +534,7 @@ def command_status(args: argparse.Namespace) -> None:
     data = {
         "decrypted_dir": str(decrypted_dir),
         "exists": decrypted_dir.exists(),
+        "refresh": load_json(decrypted_dir / "refresh_status.json"),
         "databases": [{"path": rel, "available": (decrypted_dir / rel).exists()} for rel in sorted(set(names))],
     }
     output(data if args.format == "json" else render_status_text(data), args.format)
@@ -542,6 +542,8 @@ def command_status(args: argparse.Namespace) -> None:
 
 def render_status_text(data: dict) -> str:
     lines = [f"明文 vault: {data['decrypted_dir']}", f"状态: {'可用' if data['exists'] else '不存在'}", "", "数据库:"]
+    refresh = data.get("refresh", {})
+    lines.insert(2, f"最近刷新: {refresh.get('created_at', '未验证')}；完整: {refresh.get('complete', False)}")
     for item in data["databases"]:
         lines.append(f"  {'OK' if item['available'] else '--'} {item['path']}")
     return "\n".join(lines)
@@ -907,8 +909,9 @@ def command_export(args: argparse.Namespace) -> None:
         body = render_messages_text(rows)
         suffix = "txt"
     out_path = Path(args.output).expanduser() if args.output else exports_dir / "cli_exports" / f"{datetime.now().strftime('%Y%m%d-%H%M%S')}-{safe_name(chat['display_name'])}.{suffix}"
-    out_path.parent.mkdir(parents=True, exist_ok=True)
-    out_path.write_text(body.rstrip() + "\n", encoding="utf-8")
+    atomic_text(out_path, body.rstrip() + "\n",
+                forbidden=(decrypted_dir, resolve_db_dir(), DEFAULT_VAULT_DIR / "private", DEFAULT_VAULT_DIR / "state"),
+                extensions=(".md", ".txt"))
     print(out_path)
     print(f"Exported {len(rows)} messages.")
 
@@ -991,11 +994,13 @@ def command_digest_source(args: argparse.Namespace) -> None:
     if not group or not group.get("is_group"):
         raise SystemExit(f"找不到群聊: {args.group}")
 
-    data_root = Path(args.data_root).expanduser() if args.data_root else Path.cwd() / "wechat"
+    data_root = Path(args.data_root).expanduser() if args.data_root else resolve_exports_dir() / "digests"
     folder = digest_folder(data_root, group)
-    folder.mkdir(parents=True, exist_ok=True)
+    forbidden = (decrypted_dir, resolve_db_dir(), DEFAULT_VAULT_DIR / "private", DEFAULT_VAULT_DIR / "state")
+    report_path(folder / "sources/probe.json", forbidden=forbidden)
+    private_dir(folder)
     for child in ("profiles", "profiles-roast", "imgs", "sources"):
-        (folder / child).mkdir(parents=True, exist_ok=True)
+        private_dir(folder / child)
 
     start_ts = parse_time(args.start)
     if args.since_last:
@@ -1019,8 +1024,8 @@ def command_digest_source(args: argparse.Namespace) -> None:
             "history_file": str(folder / "history.json"),
         },
     }
-    source_json.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-    source_md.write_text(render_digest_source_markdown(group, rows, stats, range_text) + "\n", encoding="utf-8")
+    atomic_text(source_json, json.dumps(payload, ensure_ascii=False, indent=2) + "\n", forbidden=forbidden)
+    atomic_text(source_md, render_digest_source_markdown(group, rows, stats, range_text) + "\n", forbidden=forbidden)
     result = {
         "folder": str(folder),
         "source_json": str(source_json),
@@ -1352,7 +1357,17 @@ def main(argv: list[str] | None = None) -> int | None:
         parser.error("snapshot 必须是第一个参数，不能与 Mac --decrypted-dir 混用")
     if sys.platform == "win32":
         parser.error("Windows 数据请使用 snapshot --snapshot <目录>；Mac 工作流不能在 Windows 自动运行")
-    args.func(args)
+    os.umask(0o077)
+    if args.command != "status":
+        refresh = load_json(resolve_decrypted_dir(args.decrypted_dir) / "refresh_status.json")
+        print("快照说明：最近刷新=" + str(refresh.get("created_at", "未知")) +
+              "；完整=" + str(refresh.get("complete", False)) +
+              "。这是本地历史快照，不代表实时消息；失败时可能包含保留的旧库。", file=sys.stderr)
+    try:
+        args.func(args)
+    except (ValueError, OSError) as exc:
+        print(f"操作失败：{type(exc).__name__}；检查输出路径和文件权限。", file=sys.stderr)
+        return 2
     return None
 
 

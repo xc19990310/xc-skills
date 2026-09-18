@@ -1,0 +1,10 @@
+#!/bin/sh
+set -eu
+umask 077
+SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+RUNTIME_PYTHON="${WECHAT_VAULT_PYTHON:-$HOME/Library/Application Support/wechat-local-vault/runtime/bin/python}"
+if [ ! -x "$RUNTIME_PYTHON" ]; then
+  printf '%s\n' 'wechat-vault: isolated Python runtime missing; see references/LOCAL-INSTALL.md' >&2
+  exit 2
+fi
+exec "$RUNTIME_PYTHON" "$SCRIPT_DIR/run.py" "$@"

@@ -18,16 +18,12 @@ from datetime import datetime
 import hashlib
 import json
 import os
-import sqlite3
-import struct
-import shutil
+import fcntl
+from private_io import atomic_json, private_dir
+from encrypted_snapshot import decrypt_db, source_fingerprint, validate_plaintext, SnapshotError
 from pathlib import Path
 
-from Crypto.Cipher import AES
 
-PAGE_SIZE = 4096
-RESERVE = 80
-IV_SIZE = 16
 
 CONFIG_FILE = Path("~/.config/wechat-local-vault.json").expanduser()
 KEYS_FILE = Path("~/.config/wechat-keys.json").expanduser()
@@ -61,31 +57,11 @@ def load_config() -> dict:
 
 
 def save_json(path: Path, data: dict) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    with path.open("w") as f:
-        json.dump(data, f, indent=2, ensure_ascii=False)
-    if str(path).startswith(str(DEFAULT_VAULT_DIR)):
-        try:
-            os.chmod(path.parent, 0o700)
-        except OSError:
-            pass
-    try:
-        os.chmod(path, 0o600)
-    except OSError:
-        pass
+    atomic_json(path, data)
 
 
 def ensure_private_dir(path: Path) -> None:
-    path.mkdir(parents=True, exist_ok=True)
-    current = path
-    while current != current.parent and str(current).startswith(str(DEFAULT_VAULT_DIR.parent)):
-        try:
-            os.chmod(current, 0o700)
-        except OSError:
-            pass
-        if current == DEFAULT_VAULT_DIR:
-            break
-        current = current.parent
+    private_dir(path)
 
 
 def resolve_db_base() -> Path:
@@ -105,60 +81,25 @@ def key_name_to_rel(name: str) -> str | None:
         return None
     if name in ALIAS_TO_REL:
         return ALIAS_TO_REL[name]
-    if name.endswith(".db") and "/" in name:
+    if name.endswith(".db") and "/" in name and not Path(name).is_absolute() and ".." not in Path(name).parts:
         return name
     return None
 
 
-def decrypt_db(src: Path, dst: Path, key_hex: str) -> None:
-    key = bytes.fromhex(key_hex)
-    if len(key) != 32:
-        raise ValueError("key must be 32 bytes")
-
-    data = src.read_bytes()
-    total_pages = len(data) // PAGE_SIZE
-    if total_pages == 0:
-        raise ValueError("database is smaller than one page")
-
-    result = bytearray()
-    for pn in range(total_pages):
-        page = data[pn * PAGE_SIZE : (pn + 1) * PAGE_SIZE]
-        enc_start = 16 if pn == 0 else 0
-        enc_size = PAGE_SIZE - RESERVE - enc_start
-        iv = page[PAGE_SIZE - RESERVE : PAGE_SIZE - RESERVE + IV_SIZE]
-        dec = AES.new(key, AES.MODE_CBC, iv).decrypt(
-            page[enc_start : enc_start + enc_size]
-        )
-
-        out_page = bytearray(PAGE_SIZE)
-        if pn == 0:
-            out_page[:16] = b"SQLite format 3\x00"
-            out_page[16 : 16 + len(dec)] = dec
-            out_page[16:18] = struct.pack(">H", PAGE_SIZE)
-        else:
-            out_page[: len(dec)] = dec
-        result.extend(out_page)
-
-    dst.parent.mkdir(parents=True, exist_ok=True)
-    dst.write_bytes(result)
-
-
 def sqlite_table_count(path: Path) -> int:
-    con = sqlite3.connect(path)
-    try:
-        return con.execute("SELECT count(*) FROM sqlite_master").fetchone()[0]
-    finally:
-        con.close()
+    return validate_plaintext(path)
 
 
 def write_manifest(out_base: Path, records: list[dict]) -> Path:
     manifest_dir = DEFAULT_VAULT_DIR / "manifests"
     ensure_private_dir(manifest_dir)
-    manifest_path = manifest_dir / f"decrypt-{datetime.now().strftime('%Y%m%d-%H%M%S')}.json"
+    manifest_path = manifest_dir / f"decrypt-{datetime.now().strftime('%Y%m%d-%H%M%S-%f')}.json"
     manifest = {
         "created_at": datetime.now().isoformat(timespec="seconds"),
         "decrypted_dir": str(out_base),
-        "database_count": sum(1 for item in records if item.get("status") == "ok"),
+        "database_count": sum(1 for item in records if item.get("status") in ("ok", "unchanged")),
+        "complete": bool(records) and all(item.get("status") in ("ok", "unchanged") for item in records),
+        "scope": "databases with captured keys; not a guarantee of all account data",
         "records": records,
         "privacy": {
             "contains_plaintext_wechat_data": True,
@@ -167,6 +108,7 @@ def write_manifest(out_base: Path, records: list[dict]) -> Path:
         },
     }
     save_json(manifest_path, manifest)
+    save_json(out_base / "refresh_status.json", manifest)
     return manifest_path
 
 
@@ -174,17 +116,8 @@ def update_config_paths(out_base: Path) -> None:
     config = load_config()
     config["vault_dir"] = str(DEFAULT_VAULT_DIR)
     config["decrypted_dir"] = str(out_base)
-    config.setdefault("exports_dir", "~/Documents/wechat-local-vault/exports")
+    config.setdefault("exports_dir", str(DEFAULT_VAULT_DIR / "exports"))
     save_json(CONFIG_FILE, config)
-
-
-def source_fingerprint(src: Path, key_hex: str) -> dict:
-    stat = src.stat()
-    return {
-        "source_bytes": stat.st_size,
-        "source_mtime_ns": stat.st_mtime_ns,
-        "key_sha256": hashlib.sha256(key_hex.encode()).hexdigest(),
-    }
 
 
 def unchanged(src: Path, dst: Path, key_hex: str, state: dict, rel: str) -> bool:
@@ -193,10 +126,11 @@ def unchanged(src: Path, dst: Path, key_hex: str, state: dict, rel: str) -> bool
     previous = state.get(rel)
     if not previous:
         return False
-    return previous == source_fingerprint(src, key_hex)
+    return (previous.get("source") == source_fingerprint(src, key_hex)
+            and previous.get("output_sha256") == hashlib.sha256(dst.read_bytes()).hexdigest())
 
 
-def main() -> None:
+def main() -> int:
     parser = argparse.ArgumentParser(description="Decrypt all known WeChat DB keys.")
     parser.add_argument(
         "-o",
@@ -207,7 +141,7 @@ def main() -> None:
     parser.add_argument(
         "--clean",
         action="store_true",
-        help="remove the output directory before decrypting",
+        help="disabled: preserve previous snapshots",
     )
     parser.add_argument(
         "--mode",
@@ -218,24 +152,41 @@ def main() -> None:
     parser.add_argument(
         "--no-manifest",
         action="store_true",
-        help="do not write a decrypt manifest",
+        help="disabled: freshness manifest is mandatory",
     )
     args = parser.parse_args()
 
     db_base = resolve_db_base()
     keys = load_json(KEYS_FILE)
-    out_base = Path(args.output).expanduser()
-    if args.clean and out_base.exists():
-        shutil.rmtree(out_base)
+    out_base = Path(args.output).expanduser().absolute()
+    if (out_base.resolve() == db_base.resolve() or db_base.resolve() in out_base.resolve().parents
+            or out_base.resolve() in db_base.resolve().parents):
+        raise SystemExit("Output must be separate from the live source database directory")
+    if args.clean:
+        raise SystemExit("--clean is disabled: previous good snapshots must be retained")
+    if args.no_manifest:
+        raise SystemExit("--no-manifest is disabled: freshness status is required")
     ensure_private_dir(out_base)
+    # Hold one private lock for this refresh, including status/state publication.
+    ensure_private_dir(DECRYPT_STATE_FILE.parent)
+    lock_fd = os.open(DECRYPT_STATE_FILE.parent / "refresh.lock", os.O_CREAT | os.O_RDWR | os.O_NOFOLLOW, 0o600)
+    try:
+        fcntl.flock(lock_fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except BlockingIOError:
+        os.close(lock_fd)
+        raise SystemExit("Another refresh is running")
     state = load_json(DECRYPT_STATE_FILE)
+    save_json(out_base / "refresh_status.json", {
+        "created_at": datetime.now().isoformat(timespec="seconds"),
+        "complete": False, "status": "refreshing", "records": [],
+    })
 
     passed = 0
     failed = 0
     skipped = 0
     records: list[dict] = []
 
-    print(f"DB base: {db_base}")
+    print("DB base: [private account directory]")
     print(f"Output:  {out_base}")
 
     for name, key_hex in sorted(keys.items()):
@@ -250,42 +201,57 @@ def main() -> None:
             skipped += 1
             records.append({"name": name, "rel": rel, "status": "skip", "reason": "source not found"})
             continue
-        if args.mode == "incremental" and unchanged(src, dst, key_hex, state, rel):
-            print(f"SKIP {name:24s}: unchanged")
-            skipped += 1
-            records.append({"name": name, "rel": rel, "status": "unchanged"})
-            continue
         try:
-            decrypt_db(src, dst, key_hex)
-            count = sqlite_table_count(dst)
+            if args.mode == "incremental" and unchanged(src, dst, key_hex, state, rel):
+                print(f"SKIP {name:24s}: unchanged (DB + WAL verified)")
+                skipped += 1
+                records.append({"name": name, "rel": rel, "status": "unchanged",
+                                "snapshot_at": state[rel].get("snapshot_at")})
+                continue
+            fingerprint = decrypt_db(src, dst, key_hex)
             size = dst.stat().st_size
-            state[rel] = source_fingerprint(src, key_hex)
-            print(f"OK   {name:24s} -> {dst} ({count} tables)")
+            snapshot_at = datetime.now().isoformat(timespec="seconds")
+            state[rel] = {"source": fingerprint, "output_sha256": hashlib.sha256(dst.read_bytes()).hexdigest(),
+                          "snapshot_at": snapshot_at}
+            print(f"OK   {name:24s}: verified snapshot")
             passed += 1
             records.append({
                 "name": name,
                 "rel": rel,
                 "status": "ok",
-                "tables": count,
+                "snapshot_at": snapshot_at,
+                "wal_included": bool(fingerprint.get("-wal") and fingerprint["-wal"]["size"]),
                 "bytes": size,
             })
         except Exception as exc:
-            try:
-                if dst.exists():
-                    dst.unlink()
-            except OSError:
-                pass
-            print(f"MISS {name:24s}: {exc}")
+            reason = str(exc) if isinstance(exc, SnapshotError) else type(exc).__name__
+            print(f"MISS {name:24s}: {reason}; previous snapshot retained")
             failed += 1
-            records.append({"name": name, "rel": rel, "status": "miss", "reason": str(exc)})
+            records.append({"name": name, "rel": rel, "status": "miss", "reason": reason, "previous_retained": dst.exists(),
+                            "snapshot_at": state.get(rel, {}).get("snapshot_at")})
 
+    known = {r["rel"] for r in records}
+    for source in sorted(db_base.rglob("*.db")):
+        rel = str(source.relative_to(db_base))
+        if rel not in known:
+            records.append({"rel": rel, "status": "missing_key", "previous_retained": (out_base / rel).exists()})
+            failed += 1
+    known = {r["rel"] for r in records}
+    for retained in sorted(out_base.rglob("*.db")):
+        rel = str(retained.relative_to(out_base))
+        if rel not in known:
+            records.append({"rel": rel, "status": "retained_orphan", "previous_retained": True,
+                            "snapshot_at": state.get(rel, {}).get("snapshot_at")})
+            failed += 1
     update_config_paths(out_base)
     save_json(DECRYPT_STATE_FILE, state)
     if not args.no_manifest:
         manifest_path = write_manifest(out_base, records)
         print(f"Manifest: {manifest_path}")
     print(f"Done: {passed} decrypted, {failed} failed, {skipped} skipped")
+    os.close(lock_fd)
+    return 2 if failed or not records or any(r["status"] == "skip" for r in records) else 0
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())

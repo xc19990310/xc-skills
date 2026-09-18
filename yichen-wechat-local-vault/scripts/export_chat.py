@@ -22,11 +22,13 @@ from pathlib import Path
 import re
 import sqlite3
 import zstandard as zstd
+from private_io import atomic_json, atomic_text
+from encrypted_snapshot import read_only
 
 CONFIG_FILE = Path("~/.config/wechat-local-vault.json").expanduser()
 DEFAULT_VAULT_DIR = Path("~/Library/Application Support/wechat-local-vault").expanduser()
 DEFAULT_DECRYPTED_DIR = DEFAULT_VAULT_DIR / "decrypted/current"
-DEFAULT_EXPORTS_DIR = Path("~/Documents/wechat-local-vault/exports").expanduser()
+DEFAULT_EXPORTS_DIR = DEFAULT_VAULT_DIR / "exports"
 EXPORT_STATE_FILE = DEFAULT_VAULT_DIR / "state/export_chat_state.json"
 
 MESSAGE_DBS = [
@@ -64,18 +66,7 @@ def load_config() -> dict:
 
 
 def save_json(path: Path, data: dict) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    with path.open("w") as f:
-        json.dump(data, f, indent=2, ensure_ascii=False)
-    if str(path).startswith(str(DEFAULT_VAULT_DIR)):
-        try:
-            os.chmod(path.parent, 0o700)
-        except OSError:
-            pass
-    try:
-        os.chmod(path, 0o600)
-    except OSError:
-        pass
+    atomic_json(path, data)
 
 
 def resolve_dirs(args: argparse.Namespace) -> tuple[Path, Path]:
@@ -86,7 +77,7 @@ def resolve_dirs(args: argparse.Namespace) -> tuple[Path, Path]:
 
 
 def connect(path: Path) -> sqlite3.Connection:
-    con = sqlite3.connect(path)
+    con = read_only(path)
     con.text_factory = bytes
     return con
 
@@ -109,7 +100,7 @@ def load_contacts(decrypted_dir: Path) -> list[dict]:
     contact_db = decrypted_dir / "contact/contact.db"
     if not contact_db.exists():
         raise SystemExit(f"contact DB not found: {contact_db}. Run decrypt_all_dbs.py first.")
-    con = sqlite3.connect(contact_db)
+    con = read_only(contact_db)
     con.row_factory = sqlite3.Row
     columns = {row["name"] for row in con.execute("PRAGMA table_info(contact)")}
     wanted = [col for col in ["username", "userName", "remark", "nick_name", "alias", "type"] if col in columns]
@@ -310,8 +301,10 @@ def main() -> None:
     else:
         stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
         out_path = exports_dir / "chats" / safe_name(display) / f"{stamp}-{args.mode}.md"
-    out_path.parent.mkdir(parents=True, exist_ok=True)
-    out_path.write_text(render_markdown(chat_id, display, rows, args.mode, since_ts), encoding="utf-8")
+    config = load_config()
+    atomic_text(out_path, render_markdown(chat_id, display, rows, args.mode, since_ts),
+                forbidden=(decrypted_dir, config.get("db_base_path"), DEFAULT_VAULT_DIR / "private", DEFAULT_VAULT_DIR / "state"),
+                extensions=(".md", ".txt"))
 
     if rows:
         state[state_key] = {"last_ts": max(item["ts"] for item in rows), "display": display}
@@ -321,4 +314,5 @@ def main() -> None:
 
 
 if __name__ == "__main__":
+    os.umask(0o077)
     main()

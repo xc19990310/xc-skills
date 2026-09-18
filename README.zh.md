@@ -4,6 +4,16 @@
 
 一个面向内容创作者的技能仓库，帮助你用 Claude Code / Codex 打通“沉淀知识 + X 内容切片 + X 文章草稿上传 + 微信数字资产 + 本地解析”的完整流程。
 
+## 在 ChatGPT/Codex 中安装微信本地解析技能
+
+在支持本地工具和技能安装的 ChatGPT/Codex 桌面或本地运行环境中，发送：
+
+```text
+请从 https://github.com/xc19990310/yichen-skills/tree/main/yichen-wechat-local-vault 安装 yichen-wechat-local-vault；安装后先运行 doctor，不要自动抓取密钥。
+```
+
+普通 ChatGPT 网页对话不能直接访问 Mac 文件系统。首次初始化和读取微信数据只应由账号所有者明确授权，使用前请阅读该技能目录下的隐私与安装说明。
+
 ## 关于作者
 
 作者：**逸尘**

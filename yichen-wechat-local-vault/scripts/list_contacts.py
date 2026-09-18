@@ -44,29 +44,8 @@ def load_keys():
 
 
 def decrypt_db(db_path, key_hex, out_path):
-    key = bytes.fromhex(key_hex)
-    with open(db_path, "rb") as f:
-        data = f.read()
-    total_pages = len(data) // PAGE_SIZE
-    result = bytearray()
-    for pn in range(total_pages):
-        page = data[pn * PAGE_SIZE:(pn + 1) * PAGE_SIZE]
-        enc_start = 16 if pn == 0 else 0
-        enc_size = PAGE_SIZE - RESERVE - enc_start
-        iv = page[PAGE_SIZE - RESERVE:PAGE_SIZE - RESERVE + IV_SIZE]
-        cipher = AES.new(key, AES.MODE_CBC, iv)
-        dec = cipher.decrypt(page[enc_start:enc_start + enc_size])
-        dp = bytearray(PAGE_SIZE)
-        if pn == 0:
-            dp[:16] = page[:16]
-            dp[16:16 + len(dec)] = dec
-        else:
-            dp[:len(dec)] = dec
-        result.extend(dp)
-    result[:16] = b"SQLite format 3\x00"
-    result[16:18] = struct.pack(">H", PAGE_SIZE)
-    with open(out_path, "wb") as f:
-        f.write(result)
+    from encrypted_snapshot import decrypt_db as safe_decrypt
+    return safe_decrypt(db_path, out_path, key_hex)
 
 
 def get_contact_map(db_path):
