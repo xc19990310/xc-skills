@@ -9,7 +9,7 @@
 在支持本地工具和技能安装的 ChatGPT/Codex 环境中，直接发送：
 
 ```text
-请从 https://github.com/xc19990310/yichen-skills/tree/main/yichen-wechat-local-vault 安装 yichen-wechat-local-vault；安装后先运行 doctor，不要自动抓取密钥。
+请从 https://github.com/xc19990310/xc-skills/tree/main/yichen-wechat-local-vault 安装 yichen-wechat-local-vault；安装后先运行 doctor，不要自动抓取密钥。
 ```
 
 安装后先运行 `doctor`。首次抓取密钥、刷新明文库和读取聊天内容都必须由使用者明确提出；安装本身不会启动微信，也不会读取账号数据。普通的 ChatGPT 网页对话不能直接访问 Mac 文件系统，必须使用具备本地工具权限的 ChatGPT/Codex 桌面或本地运行环境。

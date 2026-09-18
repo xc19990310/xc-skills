@@ -1,4 +1,4 @@
-﻿# yichen-skills
+﻿# xc-skills
 
 [English](./README.md) | 中文
 
@@ -9,7 +9,7 @@
 在支持本地工具和技能安装的 ChatGPT/Codex 桌面或本地运行环境中，发送：
 
 ```text
-请从 https://github.com/xc19990310/yichen-skills/tree/main/yichen-wechat-local-vault 安装 yichen-wechat-local-vault；安装后先运行 doctor，不要自动抓取密钥。
+请从 https://github.com/xc19990310/xc-skills/tree/main/yichen-wechat-local-vault 安装 yichen-wechat-local-vault；安装后先运行 doctor，不要自动抓取密钥。
 ```
 
 普通 ChatGPT 网页对话不能直接访问 Mac 文件系统。首次初始化和读取微信数据只应由账号所有者明确授权，使用前请阅读该技能目录下的隐私与安装说明。

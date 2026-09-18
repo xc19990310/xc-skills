@@ -1,4 +1,4 @@
-﻿# yichen-skills
+﻿# xc-skills
 
 English | [中文](./README.zh.md)
 
@@ -9,7 +9,7 @@ A skill collection for creators who want to streamline writing, X content slicin
 In a ChatGPT/Codex desktop or local environment that supports local tools and skill installation, send:
 
 ```text
-Install yichen-wechat-local-vault from https://github.com/xc19990310/yichen-skills/tree/main/yichen-wechat-local-vault, then run doctor first and do not capture keys automatically.
+Install yichen-wechat-local-vault from https://github.com/xc19990310/xc-skills/tree/main/yichen-wechat-local-vault, then run doctor first and do not capture keys automatically.
 ```
 
 The ordinary ChatGPT web chat cannot access a Mac filesystem directly. First-time initialization and WeChat data access must be explicitly authorized by the account owner; read the privacy and installation notes in the skill directory before use.

@@ -13,7 +13,7 @@ description: >
 从 GitHub 安装时使用：
 
 ```text
-请从 https://github.com/xc19990310/yichen-skills/tree/main/yichen-wechat-local-vault 安装 yichen-wechat-local-vault；安装后先运行 doctor，不要自动抓取密钥。
+请从 https://github.com/xc19990310/xc-skills/tree/main/yichen-wechat-local-vault 安装 yichen-wechat-local-vault；安装后先运行 doctor，不要自动抓取密钥。
 ```
 
 安装后先运行 `doctor`。只有用户明确要求首次初始化或补抓密钥时，才调用 `extract`；只有用户明确授权读取本机微信数据时，才调用 `refresh`、`history`、`search`、`export-chat` 或摘要命令。所有操作仅限本人或已获明确授权的账号。
