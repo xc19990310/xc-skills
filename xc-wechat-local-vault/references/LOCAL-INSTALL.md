@@ -1,6 +1,6 @@
 # 本地修订与安装记录
 
-日期：2026-09-17。上游：`mcncarl/yichen-skills`，目录 `yichen-wechat-local-vault`。
+日期：2026-09-17。上游来源：`mcncarl/yichen-skills` 的历史目录 `yichen-wechat-local-vault`；本仓库发布目录为 `xc-wechat-local-vault`。
 固定源提交：`fa0b5471dd868421212b1e7fe643b3f15b8a2aa4`。
 本地版本：`2026.09.17-local.2`。这是个人本地修订，不是上游已发布版本。
 
