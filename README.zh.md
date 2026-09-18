@@ -9,7 +9,7 @@
 在支持本地工具和技能安装的 ChatGPT/Codex 桌面或本地运行环境中，发送：
 
 ```text
-请从 https://github.com/xc19990310/xc-skills/tree/main/yichen-wechat-local-vault 安装 yichen-wechat-local-vault；安装后先运行 doctor，不要自动抓取密钥。
+请从 https://github.com/xc19990310/xc-skills/tree/main/xc-wechat-local-vault 安装 xc-wechat-local-vault；安装后先运行 doctor，不要自动抓取密钥。
 ```
 
 普通 ChatGPT 网页对话不能直接访问 Mac 文件系统。首次初始化和读取微信数据只应由账号所有者明确授权，使用前请阅读该技能目录下的隐私与安装说明。
@@ -31,7 +31,7 @@
 
 1. 把 Obsidian/Markdown 长文上传为 X Articles 草稿（`yichen-x-article-draft-uploader`）
 2. Mac 微信双开，第二个微信带蓝色图标（`yichen-mac-wechat-dual-open`）
-3. 从微信聊天、朋友圈、收藏夹沉淀 AI 数字资产（`yichen-wechat-local-vault`）
+3. 从微信聊天、朋友圈、收藏夹沉淀 AI 数字资产（`xc-wechat-local-vault`）
 4. 抓取已知抖音链接的对标视频（`yichen-content-archive`）
 5. 抓取已知小红书链接的对标笔记（`yichen-content-archive`）
 6. 用火山 ASR 做转写、字幕和口播粗剪（`yichen-volc-asr`）
@@ -89,9 +89,9 @@ Mac 微信双开——无需第三方工具，一条命令搞定：
 - 限制：微信更新后需要重新运行（用 `repair`）；推送通知可能不稳定
 - 方法来源：[@koffuxu](https://x.com/koffuxu/status/2043110831584690427) 的公开教程
 
-### `yichen-wechat-local-vault`
+### `xc-wechat-local-vault`
 
-统一 CLI 现已整合实验性的 Windows 明文快照查询，通过 `snapshot --snapshot <目录>` 使用，详见 [快照说明](./yichen-wechat-local-vault/references/windows-snapshot.md)。
+统一 CLI 现已整合实验性的 Windows 明文快照查询，通过 `snapshot --snapshot <目录>` 使用，详见 [快照说明](./xc-wechat-local-vault/references/windows-snapshot.md)。
 微信数字资产沉淀助手（macOS 专属）：
 - 解密微信 Mac 4.x 本地 SQLCipher 数据库（AES-256-CBC）
 - 提取聊天记录、朋友圈（`sns.db`）和收藏夹（`favorite.db`）
@@ -99,9 +99,9 @@ Mac 微信双开——无需第三方工具，一条命令搞定：
 - 首次引导展示三大类九种玩法：聊天记录、朋友圈、收藏夹
 - 可配置监控指定群聊、联系人、朋友圈对象和收藏夹整理偏好
 - 首次使用通过 frida 引导密钥提取
-- 常见触发词：”微信解析”、”微信全量”、”微信增量”、”导出聊天”、”朋友圈解析”、”收藏夹整理”、”客户跟进”、”yichen-wechat-local-vault”
+- 常见触发词：”微信解析”、”微信全量”、”微信增量”、”导出聊天”、”朋友圈解析”、”收藏夹整理”、”客户跟进”、”xc-wechat-local-vault”
 - 依赖：macOS、微信 Mac 4.x、Python 3.9+、`pycryptodome`、`zstandard`
-- 详细文档见 [yichen-wechat-local-vault/README.md](./yichen-wechat-local-vault/README.md)
+- 详细文档见 [xc-wechat-local-vault/README.md](./xc-wechat-local-vault/README.md)
 
 ### 已融合进 `yichen-content-archive` 的社交平台抓取器
 原先独立的抖音和小红书抓取器现在只保留一个事实源：
@@ -282,7 +282,7 @@ yichen-skills/
 │     ├─ export_x_cookies_from_chrome.py
 │     ├─ parse_markdown.py
 │     └─ upload_markdown_to_x_article.py
-├─ yichen-wechat-local-vault/
+├─ xc-wechat-local-vault/
 │  ├─ SKILL.md
 │  ├─ README.md
 │  └─ scripts/
@@ -425,7 +425,7 @@ yichen-skills/
 
 建议保持目录名不变：
 - `yichen-x-article-draft-uploader`
-- `yichen-wechat-local-vault`
+- `xc-wechat-local-vault`
 - `yichen-mac-wechat-dual-open`
 - `yichen-volc-asr`
 - `yichen-chatgpt-web-research`
@@ -466,14 +466,14 @@ codex plugin add yichen-grok-consult@yichen-skills
 3. 脚本会自动创建第二个微信（`~/Applications/WeChat-2.app`）并改蓝色图标
 4. 详细命令见 `yichen-mac-wechat-dual-open/SKILL.md`
 
-### D）启用 `yichen-wechat-local-vault`
+### D）启用 `xc-wechat-local-vault`
 
 1. 安装 Python 依赖：`pip3 install pycryptodome zstandard`
 2. 在 Claude Code 或 Codex 中说"微信解析"、"导出聊天"或"收藏夹整理"
 3. 首次运行会引导你完成密钥提取，并从九种玩法里选择当前要启用的工作流
 4. 如果不确定，默认从"聊天记录解析 + 朋友圈解析 + 收藏夹整理"开始
 5. 后续使用自动生成对应的解析报告或草案
-6. 详细说明见 [yichen-wechat-local-vault/README.md](./yichen-wechat-local-vault/README.md)
+6. 详细说明见 [xc-wechat-local-vault/README.md](./xc-wechat-local-vault/README.md)
 
 ### E）启用自媒体视频工作流
 
@@ -630,7 +630,7 @@ python3 ~/.agents/skills/x-article-draft-uploader/scripts/export_x_cookies_from_
   - 文档：<https://github.com/wshuyi/x-article-publisher-skill/blob/main/README_CN.md>
   - 许可：MIT
 
-`yichen-wechat-local-vault` 的微信数据库解密方法参考了以下项目：
+`xc-wechat-local-vault` 的微信数据库解密方法参考了以下项目：
 
 - `zhuyansen/wx-favorites-report`
   - 仓库：<https://github.com/zhuyansen/wx-favorites-report>
@@ -679,7 +679,7 @@ python3 ~/.agents/skills/x-article-draft-uploader/scripts/export_x_cookies_from_
 - 搜索词和已选公开 URL 会发送给上文所述的当前路由第三方服务。使用者需自行遵守这些服务的最新条款、隐私政策、额度和数据保留规则；绝不要把搜索框当成传递秘密或私有数据的渠道。
 - 搜索卡片、AI 生成摘要、指标和已打开页面仍属候选证据；相关主张必须在合适的原始来源中核验。
 - X 内部 GraphQL 和平台 DOM 抓取均为非官方兼容路线，可能变化或触发平台限制。
-- `yichen-wechat-local-vault` 仅限个人使用——仅可解密和读取本人的聊天数据，不得用于侵犯他人隐私。
+- `xc-wechat-local-vault` 仅限个人使用——仅可解密和读取本人的聊天数据，不得用于侵犯他人隐私。
 - `yichen-wecom-local-vault` 仅限 owner 授权的本地数据；绝不上传 key、明文快照或聊天导出。
 - `yichen-wecom-operations` 仅限 owner 授权的机器人资源；不得发送消息、操控客户端、绕过企业未开放的授权，也不得提交内部 ID、回执、源文档或客户数据。
 - 请勿把真实账号凭据（如 `cookies.json`、`wechat-keys.json`）上传到公开仓库。

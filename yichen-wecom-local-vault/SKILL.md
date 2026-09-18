@@ -5,7 +5,7 @@ description: Read, decrypt, query, search, and export local WeCom/企业微信 5
 
 # yichen-wecom-local-vault：企业微信本地数据 Vault
 
-只读取 Mac 企业微信5.x本地数据库，生成新的私密明文快照，再从快照查询联系人、会话和消息。把它与个人微信 `yichen-wechat-local-vault` 分开使用；两者的容器、加密算法和表结构不兼容。
+只读取 Mac 企业微信5.x本地数据库，生成新的私密明文快照，再从快照查询联系人、会话和消息。把它与个人微信 `xc-wechat-local-vault` 分开使用；两者的容器、加密算法和表结构不兼容。
 
 ## 强制边界
 

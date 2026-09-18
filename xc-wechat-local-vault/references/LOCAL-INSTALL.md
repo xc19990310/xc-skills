@@ -6,7 +6,7 @@
 
 ## 安装位置与命令
 
-- 技能：`~/.codex/skills/yichen-wechat-local-vault/`
+- 技能：`~/.codex/skills/xc-wechat-local-vault/`
 - 统一入口：`~/.local/bin/wechat-vault`
 - 独立 Python：`~/Library/Application Support/wechat-local-vault/runtime/`
 - 密钥：`~/.config/wechat-keys.json`（首次抓钥后才创建）

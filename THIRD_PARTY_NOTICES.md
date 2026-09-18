@@ -30,7 +30,7 @@ This repository references and adapts ideas/workflows from external projects.
 - Upstream: https://github.com/zhuyansen/wx-favorites-report
 - Author: zhuyansen
 - License: MIT
-- Usage in this repo (`yichen-wechat-local-vault`):
+- Usage in this repo (`xc-wechat-local-vault`):
   - Frida hook method for intercepting `CCKeyDerivationPBKDF` (Apple CommonCrypto PBKDF2) to extract SQLCipher encryption keys at runtime
   - SQLCipher 4 page-level decryption logic (AES-256-CBC, page_size=4096, reserve=80)
   - The approach of codesign-bypass to remove Hardened Runtime for frida injection
@@ -157,7 +157,7 @@ This repository references and adapts ideas/workflows from external projects.
 - This repository maintains its own license (`LICENSE`) for original contributions. It is personal-learning and non-commercial only.
 - The upstream projects listed above retain their original licenses and copyrights.
 - Upstream licenses and notices should be preserved when redistributing derived works.
-- `yichen-wechat-local-vault` is an independent implementation that adapts specific technical approaches from `wx-favorites-report`. It does not contain any code directly copied from the upstream project.
+- `xc-wechat-local-vault` is an independent implementation that adapts specific technical approaches from `wx-favorites-report`. It does not contain any code directly copied from the upstream project.
 - `yichen-wechat-mp-batch-exporter` references workflows from `wechat-article-exporter` and `wxdown-service`, but does not include their source code, credentials, cached browser data, or downloaded article archives.
 - `yichen-x-article-draft-uploader` references workflow and Markdown parsing ideas from `wshuyi/x-article-publisher-skill`; it stores no real credentials in source control and writes exported X cookies only to a private local file with restricted permissions.
 - The broader skill packaging conventions reference public Claude skill community practices, including JimLiu/baoyu-skills.

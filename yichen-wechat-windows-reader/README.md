@@ -1,6 +1,6 @@
 # yichen-wechat-windows-reader
 
-> 本模块的查询能力现已整合到 [yichen-wechat-local-vault](../yichen-wechat-local-vault/README.md)，可通过其 `snapshot` 子命令使用。现有独立入口继续保留。
+> 本模块的查询能力现已整合到 [xc-wechat-local-vault](../xc-wechat-local-vault/README.md)，可通过其 `snapshot` 子命令使用。现有独立入口继续保留。
 
 Experimental Windows-only, local, read-only analysis for an authorized plaintext Weixin SQLite snapshot supplied explicitly by the user.
 

@@ -9,7 +9,7 @@ A skill collection for creators who want to streamline writing, X content slicin
 In a ChatGPT/Codex desktop or local environment that supports local tools and skill installation, send:
 
 ```text
-Install yichen-wechat-local-vault from https://github.com/xc19990310/xc-skills/tree/main/yichen-wechat-local-vault, then run doctor first and do not capture keys automatically.
+Install xc-wechat-local-vault from https://github.com/xc19990310/xc-skills/tree/main/xc-wechat-local-vault, then run doctor first and do not capture keys automatically.
 ```
 
 The ordinary ChatGPT web chat cannot access a Mac filesystem directly. First-time initialization and WeChat data access must be explicitly authorized by the account owner; read the privacy and installation notes in the skill directory before use.
@@ -31,7 +31,7 @@ To request commercial authorization, contact me on WeChat at `yichen365ai` and i
 
 1. Upload Obsidian/Markdown articles to X Articles drafts (`yichen-x-article-draft-uploader`)
 2. Run two WeChat accounts on one Mac with a distinct blue icon (`yichen-mac-wechat-dual-open`)
-3. Turn WeChat chats, Moments, and Favorites into AI-powered digital assets (`yichen-wechat-local-vault`)
+3. Turn WeChat chats, Moments, and Favorites into AI-powered digital assets (`xc-wechat-local-vault`)
 4. Fetch benchmark videos from known Douyin links (`yichen-content-archive`)
 5. Fetch benchmark posts from known Xiaohongshu links (`yichen-content-archive`)
 6. Transcribe, caption, and rough-cut talking-head videos with Volcengine ASR (`yichen-volc-asr`)
@@ -89,9 +89,9 @@ Run two WeChat accounts simultaneously on macOS — no third-party tools:
 - Limitations: breaks after WeChat updates (re-run `repair`), push notifications may be unreliable
 - Based on the well-known copy + bundle-id + ad-hoc signing method documented by [@koffuxu](https://x.com/koffuxu/status/2043110831584690427)
 
-### `yichen-wechat-local-vault`
+### `xc-wechat-local-vault`
 
-The unified CLI also supports experimental Windows plaintext snapshots through `snapshot --snapshot <directory>`. See the [snapshot guide](./yichen-wechat-local-vault/references/windows-snapshot.md).
+The unified CLI also supports experimental Windows plaintext snapshots through `snapshot --snapshot <directory>`. See the [snapshot guide](./xc-wechat-local-vault/references/windows-snapshot.md).
 WeChat digital-asset assistant for macOS:
 - Decrypts WeChat Mac 4.x local SQLCipher databases (AES-256-CBC)
 - Extracts chats, Moments (`sns.db`), and Favorites (`favorite.db`)
@@ -99,9 +99,9 @@ WeChat digital-asset assistant for macOS:
 - First-time onboarding introduces 3 categories and 9 playbooks: chat records, Moments, and Favorites
 - Configurable monitoring for groups, contacts, Moments targets, and Favorites cleanup preferences
 - First-time setup guided via frida key extraction
-- Typical triggers: "微信解析", "微信全量", "微信增量", "导出聊天", "朋友圈解析", "收藏夹整理", "客户跟进", "yichen-wechat-local-vault"
+- Typical triggers: "微信解析", "微信全量", "微信增量", "导出聊天", "朋友圈解析", "收藏夹整理", "客户跟进", "xc-wechat-local-vault"
 - Requirements: macOS, WeChat Mac 4.x, Python 3.9+, `pycryptodome`, `zstandard`
-- See [yichen-wechat-local-vault/README.md](./yichen-wechat-local-vault/README.md) for full documentation
+- See [xc-wechat-local-vault/README.md](./xc-wechat-local-vault/README.md) for full documentation
 
 ### Social fetchers integrated into `yichen-content-archive`
 The former standalone Douyin and Xiaohongshu fetchers now have one source of truth:
@@ -282,7 +282,7 @@ yichen-skills/
 │     ├─ export_x_cookies_from_chrome.py
 │     ├─ parse_markdown.py
 │     └─ upload_markdown_to_x_article.py
-├─ yichen-wechat-local-vault/
+├─ xc-wechat-local-vault/
 │  ├─ SKILL.md
 │  ├─ README.md
 │  └─ scripts/
@@ -425,7 +425,7 @@ Copy this repository into your local skills directory:
 
 Keep directory names unchanged:
 - `yichen-x-article-draft-uploader`
-- `yichen-wechat-local-vault`
+- `xc-wechat-local-vault`
 - `yichen-mac-wechat-dual-open`
 - `yichen-volc-asr`
 - `yichen-chatgpt-web-research`
@@ -466,14 +466,14 @@ codex plugin add yichen-grok-consult@yichen-skills
 3. The skill will create a second WeChat at `~/Applications/WeChat-2.app` with a blue icon
 4. See `yichen-mac-wechat-dual-open/SKILL.md` for all commands
 
-### D) Enable `yichen-wechat-local-vault`
+### D) Enable `xc-wechat-local-vault`
 
 1. Install Python dependencies: `pip3 install pycryptodome zstandard`
 2. In Claude Code or Codex, say "微信解析", "导出聊天", or "收藏夹整理"
 3. First run will guide you through key extraction and choosing among the 9 playbooks
 4. If unsure, start with the recommended trio: group chat digest + Moments report + Favorites cleanup
 5. Subsequent runs generate the selected digest, report, or draft workflow
-6. See [yichen-wechat-local-vault/README.md](./yichen-wechat-local-vault/README.md) for details
+6. See [xc-wechat-local-vault/README.md](./xc-wechat-local-vault/README.md) for details
 
 ### E) Enable the creator video workflow
 
@@ -632,7 +632,7 @@ Parts of the X Articles draft workflow and Markdown parsing approach are adapted
   - Docs: <https://github.com/wshuyi/x-article-publisher-skill/blob/main/README_CN.md>
   - License: MIT
 
-The WeChat database decryption approach in `yichen-wechat-local-vault` is adapted from:
+The WeChat database decryption approach in `xc-wechat-local-vault` is adapted from:
 
 - `zhuyansen/wx-favorites-report`
   - Repo: <https://github.com/zhuyansen/wx-favorites-report>
@@ -681,7 +681,7 @@ See `THIRD_PARTY_NOTICES.md` for details.
 - Search queries and selected public URLs are transmitted to the routed third-party services described above. Users are responsible for those services' current terms, privacy policies, quotas, and data-retention practices; never use a search box as a channel for secrets or private data.
 - Search cards, generated summaries, metrics, and opened pages remain candidate evidence until the relevant claim is checked against an appropriate original source.
 - X internal GraphQL and platform-DOM routes are unofficial compatibility methods and may change or trigger platform controls.
-- `yichen-wechat-local-vault` is for personal use only — only decrypt and read your own chat data.
+- `xc-wechat-local-vault` is for personal use only — only decrypt and read your own chat data.
 - `yichen-wecom-local-vault` is for owner-authorized local data only — never upload keys, plaintext snapshots, or chat exports.
 - `yichen-wecom-operations` is for owner-authorized bot resources only — never send messages, automate the client, bypass missing enterprise authorization, or commit IDs, receipts, source documents, and customer data.
 - Never upload real account credentials (for example, `cookies.json`, `wechat-keys.json`) to public repositories.
